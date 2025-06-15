@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Heikin-Ashi BTC/USDT Trader</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #10b981;
+            --secondary-dark: #059669;
+            --dark: #0f172a;
+            --darker: #020617;
+            --card-bg: rgba(30, 41, 59, 0.8);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--darker), var(--dark));
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Header Styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #334155;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .logo-text h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        
+        .logo-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .price-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+        
+        .price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Courier New', monospace;
+        }
+        
+        .price-change {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--secondary);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* Dashboard Layout */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: auto auto auto;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .dashboard-grid {
+            display: contents;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            color: var(--primary);
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #334155;
+            color: var(--text-main);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        /* Signal Card */
+        .signal-card {
+            grid-column: span 2;
+            grid-row: 1;
+            background: linear-gradient(135deg, rgba(6, 95, 70, 0.7), rgba(4, 120, 87, 0.7));
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .signal-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            z-index: 0;
+        }
+        
+        .signal-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .signal-text h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .signal-text p {
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 600px;
+            font-size: 1.1rem;
+        }
+        
+        .signal-icon {
+            font-size: 4rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .signal-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 20px 15px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-label {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        
+        /* Charts */
+        .chart-container {
+            height: 300px;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .chart-card {
+            grid-column: span 2;
+            grid-row: 2;
+        }
+        
+        /* Data Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th {
+            text-align: left;
+            padding: 15px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 1px solid #334155;
+            font-size: 0.95rem;
+        }
+        
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #334155;
+            font-size: 0.95rem;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .data-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .candle-bullish {
+            background-color: var(--secondary);
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+        }
+        
+        .candle-bearish {
+            background-color: var(--danger);
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+        }
+        
+        .signal-tag {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .signal-tag-buy {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--secondary);
+        }
+        
+        .signal-tag-sell {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+        
+        .signal-tag-hold {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+        
+        /* Performance Cards */
+        .performance-card {
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .performance-metric {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(59, 130, 246, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+        
+        .metric-text h3 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .metric-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid #334155;
+            margin-top: 30px;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 15px;
+        }
+        
+        .footer-link {
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .footer-link:hover {
+            color: var(--secondary);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .signal-card {
+                grid-column: span 3;
+            }
+            
+            .chart-card {
+                grid-column: span 3;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .signal-card {
+                grid-column: span 2;
+            }
+            
+            .chart-card {
+                grid-column: span 2;
+            }
+            
+            .signal-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .signal-card, .chart-card {
+                grid-column: span 1;
+            }
+            
+            .signal-content {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            
+            .signal-icon {
+                font-size: 3rem;
+            }
+            
+            .signal-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .price-display {
+                align-items: flex-start;
+            }
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            animation: fadeIn 0.6s ease forwards;
+        }
+        
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+            70% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Heikin-Ashi Pro Trader</h1>
+                    <p>Advanced BTC/USDT Trading Analytics</p>
+                </div>
+            </div>
+            <div class="price-display">
+                <div class="price">$61,428.75</div>
+                <div class="price-change">
+                    <i class="fas fa-caret-up"></i>
+                    <span>+2.3% (24h)</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="dashboard">
+            <!-- Trading Signal Card -->
+            <div class="card signal-card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-bullhorn"></i> Current Trading Signal</h2>
+                    <div class="card-actions">
+                        <div class="btn"><i class="fas fa-bell"></i> Set Alert</div>
+                    </div>
+                </div>
+                <div class="signal-content">
+                    <div class="signal-text">
+                        <h3><i class="fas fa-arrow-trend-up"></i> STRONG BUY SIGNAL</h3>
+                        <p>Heikin-Ashi analysis shows a strong bullish trend with consecutive green candles and no lower shadows. High confidence in continued upward movement.</p>
+                    </div>
+                    <div class="signal-icon">
+                        <i class="fas fa-arrow-trend-up"></i>
+                    </div>
+                </div>
+                <div class="signal-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Signal Strength</div>
+                        <div class="stat-value">High</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Confidence</div>
+                        <div class="stat-value">87%</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Trend Duration</div>
+                        <div class="stat-value">12 Hours</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Next Update</div>
+                        <div class="stat-value">15:30 UTC</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Card -->
+            <div class="card performance-card">
+                <div class="performance-metric">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-simple"></i>
+                    </div>
+                    <div class="metric-text">
+                        <h3>Strategy Performance</h3>
+                        <p>+32.6% last 30 days</p>
+                    </div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-icon">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <div class="metric-text">
+                        <h3>Win Rate</h3>
+                        <p>76.4% successful signals</p>
+                    </div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="metric-text">
+                        <h3>AI Confidence</h3>
+                        <p>89% match with prediction</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Price Chart Card -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-chart-line"></i> BTC/USDT Price Chart (4h)</h2>
+                    <div class="card-actions">
+                        <div class="btn"><i class="fas fa-expand"></i> Fullscreen</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="price-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Heikin-Ashi Chart Card -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-candlestick-chart"></i> Heikin-Ashi Chart (4h)</h2>
+                    <div class="card-actions">
+                        <div class="btn"><i class="fas fa-sliders"></i> Settings</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ha-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Recent Candles Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-table"></i> Recent Heikin-Ashi Candles</h2>
+                    <div class="card-actions">
+                        <div class="btn"><i class="fas fa-download"></i> Export</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Open</th>
+                                <th>Close</th>
+                                <th>Candle</th>
+                                <th>Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Jun 16, 12:00</td>
+                                <td>$61,210.32</td>
+                                <td>$61,428.75</td>
+                                <td><div class="candle-bullish"></div></td>
+                                <td><span class="signal-tag signal-tag-buy">BUY</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 16, 08:00</td>
+                                <td>$61,025.67</td>
+                                <td>$61,210.32</td>
+                                <td><div class="candle-bullish"></div></td>
+                                <td><span class="signal-tag signal-tag-buy">BUY</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 16, 04:00</td>
+                                <td>$60,845.89</td>
+                                <td>$61,025.67</td>
+                                <td><div class="candle-bullish"></div></td>
+                                <td><span class="signal-tag signal-tag-hold">HOLD</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 16, 00:00</td>
+                                <td>$60,920.45</td>
+                                <td>$60,845.89</td>
+                                <td><div class="candle-bearish"></div></td>
+                                <td><span class="signal-tag signal-tag-hold">HOLD</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 15, 20:00</td>
+                                <td>$61,150.22</td>
+                                <td>$60,920.45</td>
+                                <td><div class="candle-bearish"></div></td>
+                                <td><span class="signal-tag signal-tag-sell">SELL</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Market Sentiment Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title"><i class="fas fa-globe"></i> Market Sentiment</h2>
+                </div>
+                <div class="sentiment-content">
+                    <div class="sentiment-metric">
+                        <h3>Bullish <span class="pull-right">72%</span></h3>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 72%; background: var(--success);"></div>
+                        </div>
+                    </div>
+                    <div class="sentiment-metric">
+                        <h3>Neutral <span class="pull-right">18%</span></h3>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 18%; background: var(--warning);"></div>
+                        </div>
+                    </div>
+                    <div class="sentiment-metric">
+                        <h3>Bearish <span class="pull-right">10%</span></h3>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 10%; background: var(--danger);"></div>
+                        </div>
+                    </div>
+                    <div class="sentiment-info">
+                        <p><i class="fas fa-info-circle"></i> Market sentiment based on social media, news, and trading volume analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This application provides cryptocurrency trading signals for educational purposes only. Always do your own research before trading.</p>
+            <div class="footer-links">
+                <a href="#" class="footer-link"><i class="fab fa-github"></i> GitHub Repo</a>
+                <a href="#" class="footer-link"><i class="fas fa-book"></i> Documentation</a>
+                <a href="#" class="footer-link"><i class="fas fa-chart-line"></i> TradingView</a>
+                <a href="#" class="footer-link"><i class="fas fa-comments"></i> Community</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts with sample data
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sample data for charts
+            const times = ['16:00', '20:00', '00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '00:00', '04:00', '08:00', '12:00'];
+            const prices = [60210, 60540, 60780, 60950, 61250, 61580, 61820, 61650, 61890, 62050, 62310, 62480];
+            const haPrices = [60180, 60420, 60650, 60820, 61150, 61480, 61620, 61580, 61760, 61980, 62210, 62450];
+            
+            // Price Chart
+            const priceCtx = document.getElementById('price-chart').getContext('2d');
+            const priceChart = new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: times,
+                    datasets: [{
+                        label: 'BTC/USDT',
+                        data: prices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 0,
+                                maxTicksLimit: 8
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Heikin-Ashi Chart
+            const haCtx = document.getElementById('ha-chart').getContext('2d');
+            const haChart = new Chart(haCtx, {
+                type: 'line',
+                data: {
+                    labels: times,
+                    datasets: [{
+                        label: 'Heikin-Ashi Close',
+                        data: haPrices,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 0,
+                                maxTicksLimit: 8
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Add pulse animation to signal card
+            document.querySelector('.signal-card').classList.add('pulse');
+        });
+    </script>
+</body>
+</html>
